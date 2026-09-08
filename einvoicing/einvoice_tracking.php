@@ -173,6 +173,54 @@ if ($object->id > 0) {
 	}
 	print '</div>';
 
+	// --- Chronogram (sequence diagram) ---
+	print load_fiche_titre($langs->trans('EInvLifecycleChronogram'), '', '');
+
+	if (!empty($events)) {
+		$svgEvents = array();
+		$dtGroups = array();
+		foreach ($events as $e) {
+			$flux    = einvoicingLifecycleFlux($e['lc_status'], $e['direction']);
+			$date    = dol_print_date($e['date_creation'], 'day');
+			$time    = dol_print_date($e['date_creation'], '%H:%M:%S');
+			$fullLabel  = einvoicingLifecycleLabel($einvoicing, (int) $e['lc_status'], (string) $e['lc_status_message']);
+			$shortLabel = mb_strimwidth($fullLabel, 0, 36, '…');
+			$tooltip = $shortLabel !== $fullLabel ? $fullLabel : '';
+			if (!empty($e['provider'])) {
+				$tooltip = trim((string) $e['provider'].' — '.$tooltip, ' —');
+			}
+
+			$svgEvents[] = array(
+				'code'        => (int) $e['lc_status'],
+				'flux'        => $flux,
+				'label'       => $shortLabel,
+				'tooltip'     => $tooltip,
+				'date'        => $date,
+				'time'        => $time,
+				'seq_from'    => einvoicingLifecycleSeqFrom($flux),
+				'seq_to'      => einvoicingLifecycleSeqTo($flux),
+				'color_class' => einvoicingLifecycleColorClass((int) $e['lc_status'], $flux),
+				'dashed'      => einvoicingLifecycleDashed((int) $e['lc_status']),
+				'group'       => 0,
+				'flow_id'     => (string) $e['flow_id'],
+			);
+			$dtGroups[$date.'|'.$time][] = count($svgEvents) - 1;
+		}
+		$gid = 0;
+		foreach ($dtGroups as $indices) {
+			foreach ($indices as $i) {
+				$svgEvents[$i]['group'] = $gid;
+			}
+			$gid++;
+		}
+
+		print einvoicingRenderLifecycleSvg($svgEvents);
+	} else {
+		print '<div style="padding:24px;text-align:center;color:#888780;font-style:italic;">'.$langs->trans('EInvNoLifecycleEvent').'</div>';
+	}
+
+	print '<br>';
+
 	// --- Detailed log (full text: validation status/message, reason code) ---
 	print load_fiche_titre($langs->trans('EInvLifecycleHistory'), '', '');
 
